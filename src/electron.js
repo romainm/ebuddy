@@ -8,8 +8,8 @@ let mainWindow;
 function createWindow() {
     const mode = process.env.NODE_ENV;
     mainWindow = new BrowserWindow({
-        width: 900,
-        height: 680
+        width: 1200,
+        height: 800
     });
 
     let watcher;
