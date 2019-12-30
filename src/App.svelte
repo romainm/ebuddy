@@ -6,7 +6,6 @@
 
   import moment from "moment";
   window.moment = moment;
-  console.log(jQuery)
 
   let segment;
 

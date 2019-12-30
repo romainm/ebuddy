@@ -1,10 +1,33 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const ipc = ipcMain;
+const Datastore = require('nedb-promises');
+const moment = require('moment');
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
+
+let accountPath = path.join(process.env.HOME, 'buddy', 'test');
+let currentPath = path.join(accountPath, 'current');
+
+function loadDb() {
+    const db = {};
+    db.transactions = Datastore.create({
+        filename: path.join(currentPath, 'transactions.db'),
+        autoload: true,
+    });
+    db.accounts = Datastore.create({
+        filename: path.join(currentPath, 'accounts.db'),
+        autoload: true,
+    });
+    // db.budgets = Datastore.create({
+    //     filename: path.join(currentPath, 'budgets.db'),
+    //     autoload: true
+    // });
+    return db;
+}
+let db = loadDb();
 
 function createWindow() {
     const mode = process.env.NODE_ENV;
@@ -13,15 +36,15 @@ function createWindow() {
         height: 800,
         webPreferences: {
             // requires for "requires" keyword
-            nodeIntegration: true
-        }
+            nodeIntegration: true,
+        },
     });
 
     let watcher;
     if (process.env.NODE_ENV === 'development') {
         watcher = require('chokidar').watch(
             path.join(__dirname, '../public/bundle.js'),
-            { ignoreInitial: true }
+            { ignoreInitial: true },
         );
         watcher.on('change', () => {
             mainWindow.reload();
@@ -29,7 +52,7 @@ function createWindow() {
     }
 
     mainWindow.loadURL(
-        `file://${path.join(__dirname, '../public/index.html')}`
+        `file://${path.join(__dirname, '../public/index.html')}`,
     );
     mainWindow.on('closed', () => {
         mainWindow = null;
@@ -61,7 +84,100 @@ app.on('activate', () => {
     }
 });
 
-let transactions = [1, 2, 3, 4, 5];
-ipc.on('list_transactions', (event, args) => {
-    event.sender.send('transactions', transactions);
+ipc.on('list_transactions', async (event, args) => {
+    const limit = args.limit != undefined ? args.limit : 100;
+
+    let searchObj = {};
+    if (args.query != undefined) {
+        const re = new RegExp(args.query, 'i');
+        searchObj.$or = [{ name: re }, { category: re }];
+    }
+
+    if (args.name != undefined) {
+        searchObj.name = new RegExp(args.name, 'i');
+    }
+
+    if (args.filters != undefined) {
+        let l = [];
+        for (let i = 0; i < args.filters.length; i++) {
+            const element = args.filters[i];
+            if (element.type === 'like') {
+                const val = new RegExp(element.value, 'i');
+
+                // accounts can be filtered using id or name
+                if (element.field === 'accountId') {
+                    const accounts = await db.accounts.find({
+                        $or: [{ accountId: val }, { name: val }],
+                    });
+                    let acc_filter = [];
+                    accounts.forEach(acc => acc_filter.push(acc.accountId));
+                    l.push({ [element.field]: { $in: acc_filter } });
+                } else {
+                    l.push({ [element.field]: val });
+                }
+            } else if (element.type === '=') {
+                l.push({ [element.field]: element.value });
+            }
+        }
+        searchObj.$and = l;
+    }
+
+    let sortObj = { date: -1 };
+    if (args.sorters != undefined) {
+        sortObj = {};
+        args.sorters.forEach(element => {
+            sortObj[element['field']] = element.dir === 'asc' ? 1 : -1;
+        });
+    }
+    console.log(searchObj);
+
+    const docs = await db.transactions
+        .find(searchObj)
+        .sort(sortObj)
+        .limit(limit);
+
+    console.log(docs);
+    event.sender.send('transactions', docs);
+});
+
+ipc.on('record_accounts', async (event, args) => {
+    console.log('recording accounts');
+    console.log(args);
+    // validate content of args
+    await db.accounts.insert(args);
+    event.sender.send('accounts_updated');
+});
+
+ipc.on('record_transactions', async (event, args) => {
+    console.log('recording transactions');
+    // validate content of args
+    console.log(args);
+    await db.transactions.insert(args);
+    event.sender.send('transactions_updated');
+});
+
+ipc.on('check_existing_transactions', async (event, args) => {
+    let dupIndices = new Set();
+
+    for (let i = 0; i < args.length; i++) {
+        const element = args[i];
+        let searchObj = {
+            accountId: element.accountId,
+            fitId: element.fitId,
+            name: element.name,
+            amount: element.amount,
+            date: moment(element.date).toDate(),
+        };
+        console.log(searchObj.date);
+        const docs = await db.transactions.find(searchObj);
+        if (docs.length) {
+            dupIndices.add(i);
+        }
+    }
+
+    console.log('Found similar:');
+    console.log(dupIndices);
+    //   return res.send(JSON.stringify([...dupIndices]));
+
+    event.sender.send('check_existing_transactions_result', [...dupIndices]);
 });
