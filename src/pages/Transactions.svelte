@@ -1,4 +1,5 @@
 <script>
+  import TransactionSearch from "../components/TransactionSearch.svelte";
   import TransactionTable from "../components/TransactionTable.svelte";
   import { accounts, transactionFilter } from "../store/cache";
   const ipc = require("electron").ipcRenderer;
@@ -73,9 +74,9 @@
       </div>
     {/each}
   </div>
-  <!-- <div class=" sixteen wide column">
+  <div class=" sixteen wide column">
     <TransactionSearch />
-  </div> -->
+  </div>
   <div class="row">
     <TransactionTable {transactions} />
   </div>

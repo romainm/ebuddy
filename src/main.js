@@ -26,7 +26,7 @@ function databaseInitialize() {
 
 function loadDb() {
     if (!fs.existsSync(accountPath)) {
-        fs.mkdirSync(accountPath, {recursive: true});
+        fs.mkdirSync(accountPath, { recursive: true });
     }
     const db = new loki(currentPath, {
         adapter: adapter,
@@ -104,16 +104,19 @@ ipc.on('list_accounts', async (event, args) => {
 ipc.on('list_transactions', async (event, args) => {
     const limit = args.limit != undefined ? args.limit : 100;
 
-    console.log(args)
+    console.log(args);
     let searchObj = {};
 
     if (args.accountId) {
-        searchObj.accountId = args.accountId
+        searchObj.accountId = args.accountId;
     }
-    // if (args.query != undefined) {
-    //     const re = new RegExp(args.query, 'i');
-    //     searchObj.$or = [{ name: re }, { category: re }];
-    // }
+    if (args.text) {
+        const re = [args.text, 'i'];
+        searchObj.$or = [
+            { name: { $regex: re } },
+            { category: { $regex: re } },
+        ];
+    }
 
     // if (args.name != undefined) {
     //     searchObj.name = new RegExp(args.name, 'i');
