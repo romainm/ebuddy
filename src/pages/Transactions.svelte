@@ -1,46 +1,49 @@
 <script>
-    import AccountEditor from "../components/AccountEditor.svelte"
-    import TransactionSearch from "../components/TransactionSearch.svelte"
-    import TransactionTable from "../components/TransactionTable.svelte"
-    import { accounts, transactionFilter } from "../store/cache"
-    const ipc = require("electron").ipcRenderer
-    import Icon from "svelte-awesome"
-    import { beer } from "svelte-awesome/icons"
-    import { faEdit } from "@fortawesome/free-regular-svg-icons"
+    import AccountEditor from "../components/AccountEditor.svelte";
+    import TransactionSearch from "../components/TransactionSearch.svelte";
+    import TransactionTable from "../components/TransactionTable.svelte";
+    import { accounts, transactionFilter } from "../store/cache";
+    const ipc = require("electron").ipcRenderer;
+    import Icon from "svelte-awesome";
+    import { beer } from "svelte-awesome/icons";
+    import { faEdit } from "@fortawesome/free-regular-svg-icons";
 
     // variables
-    let transactions = []
-    let selectedAccount = null
-    let editedAccount = null
+    let transactions = [];
+    let selectedAccount = null;
+    let editedAccount = null;
 
     function updateTransactions(ft) {
-        ipc.send("list_transactions", $transactionFilter)
+        ipc.send("list_transactions", $transactionFilter);
     }
-    $: updateTransactions($transactionFilter)
+    $: updateTransactions($transactionFilter);
 
     // event slots
-    ipc.on("transactions", (event, messages) => {
-        transactions = messages
-    })
+    ipc.on("transactions", (event, docs) => {
+        // convert back date to Date object
+        transactions = docs.map(doc => {
+            return { ...doc, date: new Date(doc.date) };
+        });
+    });
 
     ipc.on("transactions_updated", (event, messages) => {
-        ipc.send("list_transactions", $transactionFilter)
-    })
+        ipc.send("list_transactions", $transactionFilter);
+    });
 
     const openAccountWindow = account => {
-        console.log("open account")
-        editedAccount = account
-    }
+        console.log("open account");
+        editedAccount = account;
+    };
 
     function onSelectAccount(account) {
         const accountId =
-            $transactionFilter.accountId === account.id ? null : account.id
+            $transactionFilter.accountId === account.id ? null : account.id;
         selectedAccount =
-            $transactionFilter.accountId === account.id ? null : account
+            $transactionFilter.accountId === account.id ? null : account;
         transactionFilter.update(f => {
-            f.accountId = accountId
-            return f
-        })
+            f.accountId = accountId;
+            return f;
+        });
     }
 </script>
 

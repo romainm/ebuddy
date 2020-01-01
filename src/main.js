@@ -176,9 +176,9 @@ ipc.on("list_transactions", async (event, args) => {
     let docs = queryChain.limit(limit).data();
 
     // convert back date to Date object
-    docs = docs.map(doc => {
-        return { ...doc, date: new Date(doc.date) };
-    });
+    // docs = docs.map(doc => {
+    //     return { ...doc, date: new Date(doc.date) };
+    // });
 
     console.log(`${docs.length} transactions found.`);
     event.sender.send("transactions", docs);
@@ -224,8 +224,6 @@ ipc.on("check_existing_transactions", async (event, args) => {
             amount: element.amount,
             date: element.date,
         };
-        console.log(element.date);
-        console.log(searchObj.date);
         const docs = col.find(searchObj);
         if (docs.length) {
             dupIndices.add(i);
