@@ -1,24 +1,24 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
+const { app, BrowserWindow, ipcMain } = require("electron");
+const path = require("path");
 const ipc = ipcMain;
-const loki = require('lokijs');
-const lfsa = require('../node_modules/lokijs/src/loki-fs-structured-adapter.js');
-const moment = require('moment');
-const fs = require('fs');
+const loki = require("lokijs");
+const lfsa = require("../node_modules/lokijs/src/loki-fs-structured-adapter.js");
+const moment = require("moment");
+const fs = require("fs");
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
 
-let accountPath = path.join(process.env.HOME, 'buddy', 'test');
-let currentPath = path.join(accountPath, 'current.db');
+let accountPath = path.join(process.env.HOME, "buddy", "test");
+let currentPath = path.join(accountPath, "current.db");
 const adapter = new lfsa();
 
 function databaseInitialize() {
-    const colNames = ['accounts', 'transactions'];
+    const colNames = ["accounts", "transactions"];
     colNames.forEach(name => {
         if (!db.getCollection(name)) {
-            console.log('adding collection ' + name);
+            console.log("adding collection " + name);
             db.addCollection(name);
         }
     });
@@ -51,20 +51,20 @@ function createWindow() {
     });
 
     let watcher;
-    if (process.env.NODE_ENV === 'development') {
-        watcher = require('chokidar').watch(
-            path.join(__dirname, '../public/bundle.js'),
-            { ignoreInitial: true },
+    if (process.env.NODE_ENV === "development") {
+        watcher = require("chokidar").watch(
+            path.join(__dirname, "../public/bundle.js"),
+            { ignoreInitial: true }
         );
-        watcher.on('change', () => {
+        watcher.on("change", () => {
             mainWindow.reload();
         });
     }
 
     mainWindow.loadURL(
-        `file://${path.join(__dirname, '../public/index.html')}`,
+        `file://${path.join(__dirname, "../public/index.html")}`
     );
-    mainWindow.on('closed', () => {
+    mainWindow.on("closed", () => {
         mainWindow = null;
         if (watcher) {
             watcher.close();
@@ -75,18 +75,18 @@ function createWindow() {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+app.on("ready", createWindow);
 
 // Quit when all windows are closed.
-app.on('window-all-closed', () => {
+app.on("window-all-closed", () => {
     // On macOS it is common for applications and their menu bar
     // to stay active until the user quits explicitly with Cmd + Q
-    if (process.platform !== 'darwin') {
+    if (process.platform !== "darwin") {
         app.quit();
     }
 });
 
-app.on('activate', () => {
+app.on("activate", () => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (mainWindow === null) {
@@ -94,14 +94,14 @@ app.on('activate', () => {
     }
 });
 
-ipc.on('list_accounts', async (event, args) => {
-    const col = db.getCollection('accounts');
+ipc.on("list_accounts", async (event, args) => {
+    const col = db.getCollection("accounts");
     const docs = col.find({});
     console.log(docs);
-    event.sender.send('accounts', docs);
+    event.sender.send("accounts", docs);
 });
 
-ipc.on('list_transactions', async (event, args) => {
+ipc.on("list_transactions", async (event, args) => {
     const limit = args.limit != undefined ? args.limit : 100;
 
     console.log(args);
@@ -111,7 +111,7 @@ ipc.on('list_transactions', async (event, args) => {
         searchObj.accountId = args.accountId;
     }
     if (args.text) {
-        const re = [args.text, 'i'];
+        const re = [args.text, "i"];
         searchObj.$or = [
             { name: { $regex: re } },
             { category: { $regex: re } },
@@ -167,11 +167,11 @@ ipc.on('list_transactions', async (event, args) => {
     //     },
     // };
 
-    const col = db.getCollection('transactions');
+    const col = db.getCollection("transactions");
     let queryChain = col.chain().find(searchObj);
 
     // sort by date as default
-    queryChain = queryChain.simplesort('date', true);
+    queryChain = queryChain.simplesort("date", true);
 
     let docs = queryChain.limit(limit).data();
 
@@ -181,32 +181,39 @@ ipc.on('list_transactions', async (event, args) => {
     });
 
     console.log(`${docs.length} transactions found.`);
-    event.sender.send('transactions', docs);
+    event.sender.send("transactions", docs);
 });
 
-ipc.on('record_accounts', async (event, args) => {
-    console.log('recording accounts');
+ipc.on("record_accounts", async (event, args) => {
+    console.log("recording accounts");
     console.log(args);
     // validate content of args
-    // await db.accounts.insert(args);
-    const col = db.getCollection('accounts');
+    const col = db.getCollection("accounts");
     col.insert(args);
-    event.sender.send('accounts_updated');
+    event.sender.send("accounts_updated");
 });
 
-ipc.on('record_transactions', async (event, args) => {
-    console.log('recording transactions');
+ipc.on("update_account", async (event, account) => {
+    console.log("updating account");
+    // validate content of args
+    console.log(account);
+    const col = db.getCollection("accounts");
+    col.update(account);
+    event.sender.send("accounts_updated");
+});
+
+ipc.on("record_transactions", async (event, args) => {
+    console.log("recording transactions");
     // validate content of args
     console.log(args);
-    // await db.transactions.insert(args);
-    const col = db.getCollection('transactions');
+    const col = db.getCollection("transactions");
     col.insert(args);
-    event.sender.send('transactions_updated');
+    event.sender.send("transactions_updated");
 });
 
-ipc.on('check_existing_transactions', async (event, args) => {
+ipc.on("check_existing_transactions", async (event, args) => {
     let dupIndices = new Set();
-    const col = db.getCollection('transactions');
+    const col = db.getCollection("transactions");
 
     for (let i = 0; i < args.length; i++) {
         const element = args[i];
@@ -225,5 +232,5 @@ ipc.on('check_existing_transactions', async (event, args) => {
         }
     }
 
-    event.sender.send('check_existing_transactions_result', [...dupIndices]);
+    event.sender.send("check_existing_transactions_result", [...dupIndices]);
 });
