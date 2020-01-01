@@ -1,13 +1,21 @@
 <script>
   import Nav from "./components/Nav.svelte";
+  import { accounts } from "./store/cache"
   import Router from "svelte-spa-router";
   import Transactions from "./pages/Transactions.svelte";
   import Import from "./pages/Import.svelte";
+  const ipc = require("electron").ipcRenderer;
 
   import moment from "moment";
   window.moment = moment;
 
   let segment;
+
+  ipc.on("accounts", (event, messages) => {
+	accounts.set(messages);
+  });
+
+  ipc.send("list_accounts");
 
   const routes = {
     "/": Transactions,

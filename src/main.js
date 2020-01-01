@@ -1,7 +1,8 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const ipc = ipcMain;
-const Datastore = require('nedb-promises');
+const loki = require('lokijs');
+const lfsa = require('../node_modules/lokijs/src/loki-fs-structured-adapter.js');
 const moment = require('moment');
 
 // Keep a global reference of the window object, if you don't, the window will
@@ -9,22 +10,27 @@ const moment = require('moment');
 let mainWindow;
 
 let accountPath = path.join(process.env.HOME, 'buddy', 'test');
-let currentPath = path.join(accountPath, 'current');
+let currentPath = path.join(accountPath, 'current.db');
+const adapter = new lfsa();
+
+function databaseInitialize() {
+    const colNames = ['accounts', 'transactions'];
+    colNames.forEach(name => {
+        if (!db.getCollection(name)) {
+            console.log('adding collection ' + name);
+            db.addCollection(name);
+        }
+    });
+}
 
 function loadDb() {
-    const db = {};
-    db.transactions = Datastore.create({
-        filename: path.join(currentPath, 'transactions.db'),
+    const db = new loki(currentPath, {
+        adapter: adapter,
         autoload: true,
+        autoloadCallback: databaseInitialize,
+        autosave: true,
+        autosaveInterval: 2000,
     });
-    db.accounts = Datastore.create({
-        filename: path.join(currentPath, 'accounts.db'),
-        autoload: true,
-    });
-    // db.budgets = Datastore.create({
-    //     filename: path.join(currentPath, 'budgets.db'),
-    //     autoload: true
-    // });
     return db;
 }
 let db = loadDb();
@@ -84,6 +90,13 @@ app.on('activate', () => {
     }
 });
 
+ipc.on('list_accounts', async (event, args) => {
+    const col = db.getCollection('accounts');
+    const docs = col.find({});
+    console.log(docs);
+    event.sender.send('accounts', docs);
+});
+
 ipc.on('list_transactions', async (event, args) => {
     const limit = args.limit != undefined ? args.limit : 100;
 
@@ -93,48 +106,67 @@ ipc.on('list_transactions', async (event, args) => {
         searchObj.$or = [{ name: re }, { category: re }];
     }
 
-    if (args.name != undefined) {
-        searchObj.name = new RegExp(args.name, 'i');
-    }
+    // if (args.name != undefined) {
+    //     searchObj.name = new RegExp(args.name, 'i');
+    // }
 
-    if (args.filters != undefined) {
-        let l = [];
-        for (let i = 0; i < args.filters.length; i++) {
-            const element = args.filters[i];
-            if (element.type === 'like') {
-                const val = new RegExp(element.value, 'i');
+    // if (args.filters != undefined) {
+    //     let l = [];
+    //     for (let i = 0; i < args.filters.length; i++) {
+    //         const element = args.filters[i];
+    //         if (element.type === 'like') {
+    //             const val = new RegExp(element.value, 'i');
 
-                // accounts can be filtered using id or name
-                if (element.field === 'accountId') {
-                    const accounts = await db.accounts.find({
-                        $or: [{ accountId: val }, { name: val }],
-                    });
-                    let acc_filter = [];
-                    accounts.forEach(acc => acc_filter.push(acc.accountId));
-                    l.push({ [element.field]: { $in: acc_filter } });
-                } else {
-                    l.push({ [element.field]: val });
-                }
-            } else if (element.type === '=') {
-                l.push({ [element.field]: element.value });
-            }
-        }
-        searchObj.$and = l;
-    }
+    //             // accounts can be filtered using id or name
+    //             if (element.field === 'accountId') {
+    //                 const accounts = await db.accounts.find({
+    //                     $or: [{ accountId: val }, { name: val }],
+    //                 });
+    //                 let acc_filter = [];
+    //                 accounts.forEach(acc => acc_filter.push(acc.accountId));
+    //                 l.push({ [element.field]: { $in: acc_filter } });
+    //             } else {
+    //                 l.push({ [element.field]: val });
+    //             }
+    //         } else if (element.type === '=') {
+    //             l.push({ [element.field]: element.value });
+    //         }
+    //     }
+    //     searchObj.$and = l;
+    // }
 
-    let sortObj = { date: -1 };
-    if (args.sorters != undefined) {
-        sortObj = {};
-        args.sorters.forEach(element => {
-            sortObj[element['field']] = element.dir === 'asc' ? 1 : -1;
-        });
-    }
-    console.log(searchObj);
+    // let sortObj = { date: -1 };
+    // if (args.sorters != undefined) {
+    //     sortObj = {};
+    //     args.sorters.forEach(element => {
+    //         sortObj[element['field']] = element.dir === 'asc' ? 1 : -1;
+    //     });
+    // }
+    // console.log(searchObj);
 
-    const docs = await db.transactions
-        .find(searchObj)
-        .sort(sortObj)
-        .limit(limit);
+    const since = moment()
+        .subtract(1, 'months')
+        .toDate()
+        .toJSON();
+
+    // searchObj = {
+    //     date: {
+    //         $gte: since,
+    //     },
+    // };
+
+    const col = db.getCollection('transactions');
+    let queryChain = col.chain().find(searchObj);
+
+    // sort by date as default
+    queryChain = queryChain.simplesort('date', true);
+
+    let docs = queryChain.limit(limit).data();
+
+    // convert back date to Date object
+    docs = docs.map(doc => {
+        return { ...doc, date: new Date(doc.date) };
+    });
 
     console.log(docs);
     event.sender.send('transactions', docs);
@@ -144,7 +176,9 @@ ipc.on('record_accounts', async (event, args) => {
     console.log('recording accounts');
     console.log(args);
     // validate content of args
-    await db.accounts.insert(args);
+    // await db.accounts.insert(args);
+    const col = db.getCollection('accounts');
+    col.insert(args);
     event.sender.send('accounts_updated');
 });
 
@@ -152,12 +186,15 @@ ipc.on('record_transactions', async (event, args) => {
     console.log('recording transactions');
     // validate content of args
     console.log(args);
-    await db.transactions.insert(args);
+    // await db.transactions.insert(args);
+    const col = db.getCollection('transactions');
+    col.insert(args);
     event.sender.send('transactions_updated');
 });
 
 ipc.on('check_existing_transactions', async (event, args) => {
     let dupIndices = new Set();
+    const col = db.getCollection('transactions');
 
     for (let i = 0; i < args.length; i++) {
         const element = args[i];
@@ -166,18 +203,15 @@ ipc.on('check_existing_transactions', async (event, args) => {
             fitId: element.fitId,
             name: element.name,
             amount: element.amount,
-            date: moment(element.date).toDate(),
+            date: element.date,
         };
+        console.log(element.date)
         console.log(searchObj.date);
-        const docs = await db.transactions.find(searchObj);
+        const docs = col.find(searchObj)
         if (docs.length) {
             dupIndices.add(i);
         }
     }
-
-    console.log('Found similar:');
-    console.log(dupIndices);
-    //   return res.send(JSON.stringify([...dupIndices]));
 
     event.sender.send('check_existing_transactions_result', [...dupIndices]);
 });
