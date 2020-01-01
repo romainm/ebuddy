@@ -1,10 +1,10 @@
 import { writable, derived } from 'svelte/store';
 
 export const accounts = writable([]);
-export const transactions = writable([]);
+// export const transactions = writable([]);
 export const transactionFilter = writable({
     text: '',
-    accountId: ''
+    accountId: '',
 });
 export const accountLabelById = derived(accounts, $accounts => {
     const obj = {};

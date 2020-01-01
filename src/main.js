@@ -4,6 +4,7 @@ const ipc = ipcMain;
 const loki = require('lokijs');
 const lfsa = require('../node_modules/lokijs/src/loki-fs-structured-adapter.js');
 const moment = require('moment');
+const fs = require('fs');
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -24,6 +25,9 @@ function databaseInitialize() {
 }
 
 function loadDb() {
+    if (!fs.existsSync(accountPath)) {
+        fs.mkdirSync(accountPath, {recursive: true});
+    }
     const db = new loki(currentPath, {
         adapter: adapter,
         autoload: true,
@@ -100,11 +104,16 @@ ipc.on('list_accounts', async (event, args) => {
 ipc.on('list_transactions', async (event, args) => {
     const limit = args.limit != undefined ? args.limit : 100;
 
+    console.log(args)
     let searchObj = {};
-    if (args.query != undefined) {
-        const re = new RegExp(args.query, 'i');
-        searchObj.$or = [{ name: re }, { category: re }];
+
+    if (args.accountId) {
+        searchObj.accountId = args.accountId
     }
+    // if (args.query != undefined) {
+    //     const re = new RegExp(args.query, 'i');
+    //     searchObj.$or = [{ name: re }, { category: re }];
+    // }
 
     // if (args.name != undefined) {
     //     searchObj.name = new RegExp(args.name, 'i');
@@ -144,10 +153,10 @@ ipc.on('list_transactions', async (event, args) => {
     // }
     // console.log(searchObj);
 
-    const since = moment()
-        .subtract(1, 'months')
-        .toDate()
-        .toJSON();
+    // const since = moment()
+    //     .subtract(1, 'months')
+    //     .toDate()
+    //     .toJSON();
 
     // searchObj = {
     //     date: {
@@ -168,7 +177,7 @@ ipc.on('list_transactions', async (event, args) => {
         return { ...doc, date: new Date(doc.date) };
     });
 
-    console.log(docs);
+    console.log(`${docs.length} transactions found.`);
     event.sender.send('transactions', docs);
 });
 
@@ -205,9 +214,9 @@ ipc.on('check_existing_transactions', async (event, args) => {
             amount: element.amount,
             date: element.date,
         };
-        console.log(element.date)
+        console.log(element.date);
         console.log(searchObj.date);
-        const docs = col.find(searchObj)
+        const docs = col.find(searchObj);
         if (docs.length) {
             dupIndices.add(i);
         }

@@ -1,6 +1,6 @@
 <script>
   import Nav from "./components/Nav.svelte";
-  import { accounts } from "./store/cache"
+  import { accounts } from "./store/cache";
   import Router from "svelte-spa-router";
   import Transactions from "./pages/Transactions.svelte";
   import Import from "./pages/Import.svelte";
@@ -12,7 +12,10 @@
   let segment;
 
   ipc.on("accounts", (event, messages) => {
-	accounts.set(messages);
+    accounts.set(messages);
+  });
+  ipc.on("accounts_updated", (event, messages) => {
+    ipc.send("list_accounts");
   });
 
   ipc.send("list_accounts");
