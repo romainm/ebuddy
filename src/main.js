@@ -94,9 +94,34 @@ app.on("activate", () => {
     }
 });
 
+const obj_sum = function(items, prop) {
+    return items.reduce(function(a, b) {
+        return a + b[prop];
+    }, 0);
+};
+
 ipc.on("list_accounts", async (event, args) => {
     const col = db.getCollection("accounts");
+    const colTransactions = db.getCollection("transactions");
     const docs = col.find({});
+
+    for (let i = 0; i < docs.length; i++) {
+        const doc = docs[i];
+        if (
+            doc.initialBalance === undefined ||
+            doc.initialBalanceDate === undefined
+        ) {
+            doc.balance = 0;
+            continue;
+        }
+        const transactions = colTransactions.find({
+            accountId: doc.id,
+            date: { $gte: doc.initialBalanceDate },
+        });
+
+        doc.balance = doc.initialBalance + obj_sum(transactions, "amount");
+    }
+
     console.log(docs);
     event.sender.send("accounts", docs);
 });
