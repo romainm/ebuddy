@@ -31,7 +31,6 @@
     });
 
     const openAccountWindow = account => {
-        console.log("open account");
         editedAccount = account;
     };
 

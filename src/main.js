@@ -211,6 +211,15 @@ ipc.on("record_transactions", async (event, args) => {
     event.sender.send("transactions_updated");
 });
 
+ipc.on("update_transactions", async (event, transactions) => {
+    console.log("updating transactions");
+    // validate content of args
+    console.log(transactions);
+    const col = db.getCollection("transactions");
+    col.update(transactions);
+    event.sender.send("transactions_updated");
+});
+
 ipc.on("check_existing_transactions", async (event, args) => {
     let dupIndices = new Set();
     const col = db.getCollection("transactions");
