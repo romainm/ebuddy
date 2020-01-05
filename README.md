@@ -9,6 +9,9 @@ Todo:
 -   add computed current balance on accounts
 -   search by anything (name, category, amount ("<1000 >30"))
 -   graph past data by search result
+-   ability to save search queries for graph so we can reuse it later on
+-   all categories graphed for the past n months/years (and save as reusable chart)
+-   net worth chart
 
 database links:
 

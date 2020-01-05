@@ -7,6 +7,7 @@
     import Icon from "svelte-awesome";
     import { beer } from "svelte-awesome/icons";
     import { faEdit } from "@fortawesome/free-regular-svg-icons";
+    import { formatMoney } from "../utils/formatters";
 
     // variables
     let transactions = [];
@@ -64,17 +65,19 @@
 </style>
 
 <div class="ui container grid">
-    <div class="row">
+    <div class=" sixteen wide column">
         {#each $accounts as account}
             <div
-                class="three wide column account-button"
-                class:selected-account={selectedAccount === account}>
-                <span on:click={() => onSelectAccount(account)}>
-                    {account.label ? account.label : account.id}
-                </span>
-                <span on:click={() => openAccountWindow(account)}>
-                    <Icon data={faEdit} />
-                </span>
+                class="ui right big icon label"
+                class:active={selectedAccount === account}
+                on:click={() => onSelectAccount(account)}>
+                {account.label ? account.label : account.id}
+                <div class="detail">
+                    {account.balance ? '$' + formatMoney(account.balance) : ''}
+                </div>
+                <i
+                    class="edit icon"
+                    on:click={() => openAccountWindow(account)} />
             </div>
         {/each}
     </div>
