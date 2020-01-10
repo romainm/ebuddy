@@ -127,7 +127,7 @@ ipc.on("list_accounts", async (event, args) => {
 });
 
 ipc.on("list_transactions", async (event, args) => {
-    const limit = args.limit != undefined ? args.limit : 100;
+    const limit = args.limit != undefined ? args.limit : 1000;
 
     console.log(args);
     let searchObj = {};
