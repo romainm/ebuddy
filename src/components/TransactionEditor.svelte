@@ -14,6 +14,7 @@
         category = category ? category : "";
     }
     function saveChanges() {
+        console.log("save changes");
         transactions.forEach(t => {
             t.category = category;
         });
@@ -26,7 +27,7 @@
 
 </style>
 
-<form class="ui form">
+<form class="ui form" on:submit|preventDefault={saveChanges}>
     <div>{transactions.length} transactions selected</div>
     <div class="field">
         <label>Category</label>
