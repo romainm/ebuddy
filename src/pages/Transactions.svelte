@@ -16,7 +16,7 @@
     let editedAccount = null;
     let chartData = [];
 
-    $: console.log(chartData);
+    // $: console.log(chartData);
 
     function updateTransactions(ft) {
         ipc.send("list_transactions", $transactionFilter);
