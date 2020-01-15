@@ -16,12 +16,11 @@
     let editedAccount = null;
     let chartData = [];
 
-    // $: console.log(chartData);
-
-    function updateTransactions(ft) {
+    function onFilterChanged(ft) {
         ipc.send("list_transactions", $transactionFilter);
+        ipc.send("build_quick_chart", { filter: $transactionFilter });
     }
-    $: updateTransactions($transactionFilter);
+    $: onFilterChanged($transactionFilter);
 
     // event slots
     ipc.on("transactions", (event, docs) => {
@@ -29,50 +28,16 @@
         transactions = docs.map(doc => {
             return { ...doc, date: new Date(doc.date) };
         });
-        updateChart();
+    });
+
+    ipc.on("quick_chart_built", (event, args) => {
+        chartData = args;
     });
 
     ipc.on("transactions_updated", (event, messages) => {
         ipc.send("list_transactions", $transactionFilter);
+        ipc.send("build_quick_chart", { filter: $transactionFilter });
     });
-
-    function updateChart() {
-        // group transactions per month
-        const maxMonths = 12;
-        const totalPerMonth = Array(maxMonths).fill(0);
-        const today = new Date();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getYear();
-        for (let i = 0; i < transactions.length; i++) {
-            const amount = transactions[i].amount;
-            const date = transactions[i].date;
-
-            var nbMonths = currentMonth - date.getMonth();
-            var nbYears = currentYear - date.getYear();
-            nbMonths += nbYears * 12;
-
-            if (nbMonths >= maxMonths) {
-                continue;
-            }
-
-            totalPerMonth[nbMonths] += amount;
-        }
-
-        var min = Math.min(...totalPerMonth);
-        var max = Math.max(...totalPerMonth);
-
-        // build list of months
-        let month;
-        let chartData_ = [];
-        let date = today;
-        for (let i = 0; i < maxMonths; i++) {
-            month = moment(date).format("MMM YYYY");
-            chartData_.unshift({ value: totalPerMonth[i], label: month });
-            date.setMonth(date.getMonth() - 1);
-        }
-
-        chartData = chartData_;
-    }
 
     const openAccountWindow = account => {
         editedAccount = account;

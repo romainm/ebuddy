@@ -16,6 +16,9 @@ Todo:
     -   per week, month, quarter, year quick grouping (button)
 -   transactions:
     -   select all
+-   use tabulator for now or find another table that supports paging or virtual dom
+-   graph:
+-   -   data should come from server using same filter. Potentially use a lot mor transactions.
 
 database links:
 

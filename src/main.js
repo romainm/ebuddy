@@ -126,10 +126,9 @@ ipc.on("list_accounts", async (event, args) => {
     event.sender.send("accounts", docs);
 });
 
-ipc.on("list_transactions", async (event, args) => {
-    const limit = args.limit != undefined ? args.limit : 1000;
+function listTransactions(args) {
+    const limit = args.limit != undefined ? args.limit : -1;
 
-    console.log(args);
     let searchObj = {};
 
     if (args.accountId) {
@@ -143,55 +142,6 @@ ipc.on("list_transactions", async (event, args) => {
         ];
     }
 
-    // if (args.name != undefined) {
-    //     searchObj.name = new RegExp(args.name, 'i');
-    // }
-
-    // if (args.filters != undefined) {
-    //     let l = [];
-    //     for (let i = 0; i < args.filters.length; i++) {
-    //         const element = args.filters[i];
-    //         if (element.type === 'like') {
-    //             const val = new RegExp(element.value, 'i');
-
-    //             // accounts can be filtered using id or name
-    //             if (element.field === 'accountId') {
-    //                 const accounts = await db.accounts.find({
-    //                     $or: [{ accountId: val }, { name: val }],
-    //                 });
-    //                 let acc_filter = [];
-    //                 accounts.forEach(acc => acc_filter.push(acc.accountId));
-    //                 l.push({ [element.field]: { $in: acc_filter } });
-    //             } else {
-    //                 l.push({ [element.field]: val });
-    //             }
-    //         } else if (element.type === '=') {
-    //             l.push({ [element.field]: element.value });
-    //         }
-    //     }
-    //     searchObj.$and = l;
-    // }
-
-    // let sortObj = { date: -1 };
-    // if (args.sorters != undefined) {
-    //     sortObj = {};
-    //     args.sorters.forEach(element => {
-    //         sortObj[element['field']] = element.dir === 'asc' ? 1 : -1;
-    //     });
-    // }
-    // console.log(searchObj);
-
-    // const since = moment()
-    //     .subtract(1, 'months')
-    //     .toDate()
-    //     .toJSON();
-
-    // searchObj = {
-    //     date: {
-    //         $gte: since,
-    //     },
-    // };
-
     const col = db.getCollection("transactions");
     let queryChain = col.chain().find(searchObj);
 
@@ -200,14 +150,63 @@ ipc.on("list_transactions", async (event, args) => {
 
     let docs = queryChain.limit(limit).data();
 
-    // convert back date to Date object
-    // docs = docs.map(doc => {
-    //     return { ...doc, date: new Date(doc.date) };
-    // });
+    console.log(`${args}: ${docs.length} transactions found.`);
+    return docs;
+}
 
-    console.log(`${docs.length} transactions found.`);
-    event.sender.send("transactions", docs);
+ipc.on("list_transactions", async (event, args) => {
+    args.limit = 1000;
+    const transactions = listTransactions(args);
+    event.sender.send("transactions", transactions);
 });
+
+ipc.on("build_quick_chart", async (event, args) => {
+    console.log("building quick chart");
+    console.log(args);
+    const transactions = listTransactions(args.filter);
+    event.sender.send("quick_chart_built", buildChartData(transactions));
+});
+
+function buildChartData(transactions) {
+    // group transactions per month
+    transactions = transactions.map(doc => {
+        return { ...doc, date: new Date(doc.date) };
+    });
+    const maxMonths = 12;
+    const totalPerMonth = Array(maxMonths).fill(0);
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getYear();
+    for (let i = 0; i < transactions.length; i++) {
+        const amount = transactions[i].amount;
+        const date = transactions[i].date;
+
+        var nbMonths = currentMonth - date.getMonth();
+        var nbYears = currentYear - date.getYear();
+        nbMonths += nbYears * 12;
+
+        if (nbMonths >= maxMonths) {
+            continue;
+        }
+
+        totalPerMonth[nbMonths] += amount;
+    }
+
+    var min = Math.min(...totalPerMonth);
+    var max = Math.max(...totalPerMonth);
+
+    // build list of months
+    let month;
+    let chartData = [];
+    let date = today;
+    for (let i = 0; i < maxMonths; i++) {
+        month = moment(date).format("MMM YYYY");
+        chartData.unshift({ value: totalPerMonth[i], label: month });
+        date.setMonth(date.getMonth() - 1);
+    }
+
+    return chartData;
+}
 
 ipc.on("record_accounts", async (event, args) => {
     console.log("recording accounts");
