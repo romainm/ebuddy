@@ -9,13 +9,25 @@
         "electron": "run-s build pure-electron",
         "pure-electron": "electron .",
         "electron-dev": "run-p dev pure-electron-dev",
-        "pure-electron-dev": "NODE_ENV=development electron ."
+        "pure-electron-dev": "NODE_ENV=development electron .",
+        "pack": "electron-builder --dir",
+        "dist": "electron-builder"
+    },
+    "build": {
+        "appId": "com.rmaurer.buddy",
+        "productName": "buddy",
+        "linux": {
+            "target": [
+                "AppImage"
+            ]
+        }
     },
     "devDependencies": {
         "@rollup/plugin-commonjs": "^11.0.0",
         "@rollup/plugin-node-resolve": "^6.0.0",
         "chokidar": "^3.3.1",
         "electron": "^7.1.7",
+        "electron-builder": "^21.2.0",
         "rollup": "^1.20.0",
         "rollup-plugin-livereload": "^1.0.0",
         "rollup-plugin-node-builtins": "^2.1.2",
