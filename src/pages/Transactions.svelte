@@ -18,7 +18,10 @@
 
     function onFilterChanged(ft) {
         ipc.send("list_transactions", $transactionFilter);
-        ipc.send("build_quick_chart", { filter: $transactionFilter });
+        ipc.send("build_quick_chart", {
+            filter: $transactionFilter,
+            groupUnit: "week",
+        });
     }
     $: onFilterChanged($transactionFilter);
 
@@ -53,6 +56,27 @@
             return f;
         });
     }
+
+    function reportPerWeek() {
+        ipc.send("build_quick_chart", {
+            filter: $transactionFilter,
+            groupUnit: "week",
+        });
+    }
+    function reportPerMonth() {
+        console.log("month");
+        ipc.send("build_quick_chart", {
+            filter: $transactionFilter,
+            groupUnit: "month",
+        });
+    }
+    function reportPerYear() {
+        console.log("year");
+        ipc.send("build_quick_chart", {
+            filter: $transactionFilter,
+            groupUnit: "year",
+        });
+    }
 </script>
 
 <style>
@@ -73,6 +97,9 @@
 </style>
 
 <div class="ui container grid">
+    <div class="ui button" on:click={reportPerWeek}>Week</div>
+    <div class="ui button" on:click={reportPerMonth}>Month</div>
+    <div class="ui button" on:click={reportPerYear}>Year</div>
     <Chart data={chartData} width="6" />
     <div class=" sixteen wide column">
         {#each $accounts as account}

@@ -163,48 +163,130 @@ ipc.on("list_transactions", async (event, args) => {
 ipc.on("build_quick_chart", async (event, args) => {
     console.log("building quick chart");
     console.log(args);
+    // TODO add limit in time
     const transactions = listTransactions(args.filter);
-    event.sender.send("quick_chart_built", buildChartData(transactions));
+    event.sender.send("quick_chart_built", buildChartData(transactions, args));
 });
 
-function buildChartData(transactions) {
-    // group transactions per month
+function _buildDateWeek() {
+    const startOfWeek = moment().startOf("isoWeek");
+    const endOfWeek = moment().endOf("isoWeek");
+    return [startOfWeek, endOfWeek];
+}
+
+function _nextStartDateWeek(date) {
+    return date.clone().subtract(1, "week");
+}
+
+function _buildDateMonth() {
+    const startOfMonth = moment().startOf("month");
+    const endOfMonth = moment().endOf("month");
+    return [startOfMonth, endOfMonth];
+}
+
+function _nextStartDateMonth(date) {
+    return date.clone().subtract(1, "month");
+}
+
+function _buildDateYear() {
+    const startOfYear = moment().startOf("year");
+    const endOfYear = moment().endOf("year");
+    return [startOfYear, endOfYear];
+}
+
+function _nextStartDateYear(date) {
+    return date.clone().subtract(1, "year");
+}
+
+function buildChartData(transactions, args) {
+    // group unit: by week (7 days), fortnight (14 days), month, quarter, year
+    /*
+        startDate / endDate
+
+        week: 27 Dec 18
+        fortnight: 27 Dec 18
+        month: Jan 18
+        year: 2018
+        quarter: Jan 18
+
+        current date always included in the last item
+        month: current month
+        week: current week (start on monday)
+        fortnight: not yet
+        trimester: start in Jan, Apr, Jul, Oct
+
+    */
+    const units = {
+        month: {
+            template: "MMM YY",
+            buildDateFunc: _buildDateMonth,
+            nextStartDateFunc: _nextStartDateMonth,
+        },
+        year: {
+            template: "YYYY",
+            buildDateFunc: _buildDateYear,
+            nextStartDateFunc: _nextStartDateYear,
+        },
+        week: {
+            template: "DD MMM YY",
+            buildDateFunc: _buildDateWeek,
+            nextStartDateFunc: _nextStartDateWeek,
+        },
+        fortnight: { template: "DD MMM YY" },
+        trimester: { template: "MMM YY" },
+        semester: { template: "MMM YY" },
+    };
+
+    const maxUnits = args.nbUnits === undefined ? 12 : args.nbUnits;
+    const groupUnit = args.groupUnit === undefined ? "month" : args.groupUnit;
+
+    // build start dates for structure
+    const chartData = [];
+
+    const unit = units[groupUnit];
+
+    // build start and end date of current period
+    let [startDate, endDate] = unit.buildDateFunc();
+    // because momentjs sets date as last second on previous day
+    // startDate.add(1, "second");
+    // endDate.add(1, "second");
+
     transactions = transactions.map(doc => {
         return { ...doc, date: new Date(doc.date) };
     });
-    const maxMonths = 12;
-    const totalPerMonth = Array(maxMonths).fill(0);
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getYear();
-    for (let i = 0; i < transactions.length; i++) {
-        const amount = transactions[i].amount;
-        const date = transactions[i].date;
+    transactions.sort((a, b) => a.date > b.date);
 
-        var nbMonths = currentMonth - date.getMonth();
-        var nbYears = currentYear - date.getYear();
-        nbMonths += nbYears * 12;
+    let transactionIndex = 0;
+    for (let i = 0; i < maxUnits; i++) {
+        d = {};
+        // console.log(startDate.toDate());
+        // console.log(endDate.toDate());
+        // console.log("---");
 
-        if (nbMonths >= maxMonths) {
-            continue;
+        d.startDate = startDate.toDate();
+        d.endDate = endDate.toDate();
+        d.label = startDate.format(unit.template);
+        d.value = 0;
+
+        // transactions are sorted latest to oldest so
+        // we just stop when we find a transaction that is earlier than startDate
+        for (; transactionIndex < transactions.length; transactionIndex++) {
+            const t = transactions[transactionIndex];
+            if (t.date < d.startDate) {
+                break;
+            }
+            d.value += t.amount;
+            // console.log(`${d.startDate}-${d.endDate} : ${t.date}`);
         }
 
-        totalPerMonth[nbMonths] += amount;
+        chartData.unshift(d);
+
+        // prepare next unit
+        endDate = startDate;
+        startDate = unit.nextStartDateFunc(startDate);
     }
 
-    var min = Math.min(...totalPerMonth);
-    var max = Math.max(...totalPerMonth);
-
-    // build list of months
-    let month;
-    let chartData = [];
-    let date = today;
-    for (let i = 0; i < maxMonths; i++) {
-        month = moment(date).format("MMM YYYY");
-        chartData.unshift({ value: totalPerMonth[i], label: month });
-        date.setMonth(date.getMonth() - 1);
-    }
-
+    // console.log(chartData);
     return chartData;
 }
 
