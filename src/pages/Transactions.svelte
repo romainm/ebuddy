@@ -15,15 +15,15 @@
     let selectedAccount = null;
     let editedAccount = null;
     let chartData = [];
+    let reportUnit = "month";
 
     function onFilterChanged(ft) {
         ipc.send("list_transactions", $transactionFilter);
-        ipc.send("build_quick_chart", {
-            filter: $transactionFilter,
-            groupUnit: "week",
-        });
+        onReportUnitChanged();
     }
+
     $: onFilterChanged($transactionFilter);
+    $: onReportUnitChanged(reportUnit);
 
     // event slots
     ipc.on("transactions", (event, docs) => {
@@ -57,24 +57,10 @@
         });
     }
 
-    function reportPerWeek() {
+    function onReportUnitChanged() {
         ipc.send("build_quick_chart", {
             filter: $transactionFilter,
-            groupUnit: "week",
-        });
-    }
-    function reportPerMonth() {
-        console.log("month");
-        ipc.send("build_quick_chart", {
-            filter: $transactionFilter,
-            groupUnit: "month",
-        });
-    }
-    function reportPerYear() {
-        console.log("year");
-        ipc.send("build_quick_chart", {
-            filter: $transactionFilter,
-            groupUnit: "year",
+            groupUnit: reportUnit,
         });
     }
 </script>
@@ -97,9 +83,24 @@
 </style>
 
 <div class="ui container grid">
-    <div class="ui button" on:click={reportPerWeek}>Week</div>
-    <div class="ui button" on:click={reportPerMonth}>Month</div>
-    <div class="ui button" on:click={reportPerYear}>Year</div>
+    <div
+        class="ui button"
+        on:click={() => (reportUnit = 'week')}
+        class:active={reportUnit === 'week'}>
+        Week
+    </div>
+    <div
+        class="ui button"
+        on:click={() => (reportUnit = 'month')}
+        class:active={reportUnit === 'month'}>
+        Month
+    </div>
+    <div
+        class="ui button"
+        on:click={() => (reportUnit = 'year')}
+        class:active={reportUnit === 'year'}>
+        Year
+    </div>
     <Chart data={chartData} width="6" />
     <div class=" sixteen wide column">
         {#each $accounts as account}
