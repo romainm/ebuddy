@@ -97,6 +97,12 @@
     </div>
     <div
         class="ui button"
+        on:click={() => (reportUnit = 'trimester')}
+        class:active={reportUnit === 'trimester'}>
+        Trimester
+    </div>
+    <div
+        class="ui button"
         on:click={() => (reportUnit = 'year')}
         class:active={reportUnit === 'year'}>
         Year

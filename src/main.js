@@ -178,6 +178,25 @@ function _nextStartDateWeek(date) {
     return date.clone().subtract(1, "week");
 }
 
+function _buildDateTrimester() {
+    let startOfPeriod = moment().startOf("year");
+    let endOfPeriod = startOfPeriod.clone().add(3, "month");
+    const today = moment();
+    while (true) {
+        if (today > startOfPeriod && today < endOfPeriod) {
+            break;
+        }
+        startOfPeriod.add(3, "month");
+        endOfPeriod = startOfPeriod.clone().add(3, "month");
+    }
+
+    return [startOfPeriod, endOfPeriod];
+}
+
+function _nextStartDateTrimester(date) {
+    return date.clone().subtract(3, "month");
+}
+
 function _buildDateMonth() {
     const startOfMonth = moment().startOf("month");
     const endOfMonth = moment().endOf("month");
@@ -233,8 +252,12 @@ function buildChartData(transactions, args) {
             nextStartDateFunc: _nextStartDateWeek,
         },
         fortnight: { template: "DD MMM YY" },
-        trimester: { template: "MMM YY" },
         semester: { template: "MMM YY" },
+        trimester: {
+            template: "MMM YY",
+            buildDateFunc: _buildDateTrimester,
+            nextStartDateFunc: _nextStartDateTrimester,
+        },
     };
 
     const maxUnits = args.nbUnits === undefined ? 12 : args.nbUnits;
