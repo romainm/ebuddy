@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, dialog } = require("electron");
 const path = require("path");
 const ipc = ipcMain;
 const loki = require("lokijs");
@@ -10,8 +10,10 @@ const fs = require("fs");
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
 
-let accountPath = path.join(process.env.HOME, "buddy", "test");
-let currentPath = path.join(accountPath, "current.db");
+const settingsFolder = path.join(process.env.HOME, ".buddy");
+const settingsFile = path.join(settingsFolder, "settings.json");
+let sessionData = _readSessionData();
+
 const adapter = new lfsa();
 
 function databaseInitialize() {
@@ -25,9 +27,11 @@ function databaseInitialize() {
 }
 
 function loadDb() {
-    if (!fs.existsSync(accountPath)) {
-        fs.mkdirSync(accountPath, { recursive: true });
+    if (!fs.existsSync(sessionData.accountPath)) {
+        fs.mkdirSync(sessionData.accountPath, { recursive: true });
     }
+    let currentPath = path.join(sessionData.accountPath, "current.db");
+
     const db = new loki(currentPath, {
         adapter: adapter,
         autoload: true,
@@ -49,6 +53,28 @@ function createWindow() {
             nodeIntegration: true,
         },
     });
+
+    var menu = Menu.buildFromTemplate([
+        {
+            label: "Account",
+            submenu: [
+                {
+                    label: "Set Account Folder...",
+                    click() {
+                        _openSetAccountFolder();
+                    },
+                },
+                { type: "separator" },
+                {
+                    label: "Exit",
+                    click() {
+                        app.quit();
+                    },
+                },
+            ],
+        },
+    ]);
+    Menu.setApplicationMenu(menu);
 
     let watcher;
     if (process.env.NODE_ENV === "development") {
@@ -370,3 +396,40 @@ ipc.on("check_existing_transactions", async (event, args) => {
 
     event.sender.send("check_existing_transactions_result", [...dupIndices]);
 });
+
+function _openSetAccountFolder() {
+    let folders = dialog.showOpenDialogSync({
+        properties: ["openDirectory", "createDirectory"],
+        defaultPath: sessionData.accountPath,
+    });
+    if (folders != undefined) {
+        console.log(folders[0]);
+        sessionData.accountPath = folders[0];
+        _writeSessionData();
+        db = loadDb();
+    }
+}
+
+function _readSessionData() {
+    let sessionObj = {};
+
+    if (fs.existsSync(settingsFile)) {
+        sessionObj = JSON.parse(fs.readFileSync(settingsFile, "utf8"));
+    }
+    //sessionObj = sessionObj ? sessionObj : {};
+    if (!sessionObj.accountPath) {
+        sessionObj.accountPath = path.join(process.env.HOME, "buddy", "main");
+    }
+    return sessionObj;
+}
+
+function _writeSessionData() {
+    if (!fs.existsSync(settingsFile)) {
+        fs.mkdirSync(settingsFolder, { recursive: true });
+    }
+    fs.writeFile(settingsFile, JSON.stringify(sessionData), function(err) {
+        if (err) {
+            console.log(err);
+        }
+    });
+}
