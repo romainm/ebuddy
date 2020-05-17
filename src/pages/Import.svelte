@@ -46,7 +46,10 @@
                         case "ACCTTYPE":
                             accountType = val;
                             break;
+                        case "/CCACCTFROM":
                         case "/BANKACCTFROM":
+                            // credit card statements do not have bankId
+                            bankId = bankId ? bankId : 'unknown'
                             fullAccountId = `${bankId}-${accountId}`;
                             if (!importData.accountById.has(fullAccountId)) {
                                 importData.accountById.set(fullAccountId, {
