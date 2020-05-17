@@ -6,6 +6,9 @@ To Read:
 
 Todo:
 
+-   keep track of imports and allow to 
+-   - list them: when, show transactions
+-   - clear associated translation
 -   add computed current balance on accounts
 -   search by anything (name, category, amount ("<1000 >30"))
 -   graph past data by search result
@@ -14,6 +17,7 @@ Todo:
 -   net worth chart
 -   transaction chart:
     -   per week, month, quarter, year quick grouping (button)
+    -   ability to remove points from graph when they are too different than the rest of the data and affect the scale too much.
 -   transactions:
     -   select all
 -   use tabulator for now or find another table that supports paging or virtual dom
