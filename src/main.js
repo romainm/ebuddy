@@ -339,10 +339,24 @@ function buildChartData(transactions, args) {
     return chartData;
 }
 
+function _validateAccountToRecord(account) {
+    if (account.initialBalanceDate) {
+        if (account.initialBalanceDate instanceof Date) {
+            account.initialBalanceDate = account.initialBalanceDate.getTime()
+        }
+        else if (! Number.isInteger(account.initialBalanceDate)) {
+            transaction.date = transaction.date
+        }
+    }
+}
+
+
 ipc.on("record_accounts", async (event, args) => {
     console.log("recording accounts");
+    args.map(doc => {
+        _validateAccountToRecord(doc)
+    });
     console.log(args);
-    // validate content of args
     const col = db.getCollection("accounts");
     col.insert(args);
     event.sender.send("accounts_updated");
@@ -350,25 +364,39 @@ ipc.on("record_accounts", async (event, args) => {
 
 ipc.on("update_account", async (event, account) => {
     console.log("updating account");
-    // validate content of args
+    _validateAccountToRecord(account)
     console.log(account);
     const col = db.getCollection("accounts");
     col.update(account);
     event.sender.send("accounts_updated");
 });
 
-ipc.on("record_transactions", async (event, args) => {
+function _validateTransactionToRecord(transaction) {
+    if (transaction.date) {
+        if (transaction.date instanceof Date) {
+            transaction.date = transaction.date.getTime()
+        }
+        else if (! Number.isInteger(transaction.date)) {
+            transaction.date = Date.now()
+        }
+    }
+}
+
+ipc.on("record_transactions", async (event, transactions) => {
     console.log("recording transactions");
-    // validate content of args
-    console.log(args);
+    transactions.map(doc => {
+        _validateTransactionToRecord(doc)
+    });
     const col = db.getCollection("transactions");
-    col.insert(args);
+    col.insert(transactions);
     event.sender.send("transactions_updated");
 });
 
 ipc.on("update_transactions", async (event, transactions) => {
     console.log("updating transactions");
-    // validate content of args
+    transactions.map(doc => {
+        _validateTransactionToRecord(doc)
+    });
     console.log(transactions);
     const col = db.getCollection("transactions");
     col.update(transactions);
@@ -381,6 +409,7 @@ ipc.on("check_existing_transactions", async (event, args) => {
 
     for (let i = 0; i < args.length; i++) {
         const element = args[i];
+        _validateTransactionToRecord(element)
         let searchObj = {
             accountId: element.accountId,
             fitId: element.fitId,
